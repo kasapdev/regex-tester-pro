@@ -1,0 +1,114 @@
+/* =====================================================================
+   Regex Tester Pro — app.css
+   Extends the shared design system (base.css). Colors derive ONLY from
+   base.css CSS variables so dark + light themes both work.
+   ===================================================================== */
+
+[data-theme="light"] .icon-sun { display: none; }
+.icon-moon { display: none; }
+
+/* ===================== Toolbar ===================== */
+.toolbar-panel { padding: var(--space-4) var(--space-5); }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-4); }
+.toolbar-group { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+
+.pattern-field { width: 100%; }
+.pattern-field label { white-space: nowrap; font-family: var(--font-mono); color: var(--text-muted); }
+.pattern-field input#patternInput { flex: 1; min-width: 160px; }
+.pattern-field .flags-input { width: 90px; flex: none; }
+.field-inline { display: inline-flex; align-items: center; gap: var(--space-2); }
+.field-inline select { width: auto; min-width: 150px; padding-top: 8px; padding-bottom: 8px; }
+
+/* ===================== Status badge ===================== */
+#statusBadge .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); flex: none; transition: background var(--dur-2), box-shadow var(--dur-2); }
+#statusBadge.is-valid { background: var(--success-soft); color: var(--success); border-color: transparent; }
+#statusBadge.is-valid .status-dot { background: var(--success); box-shadow: 0 0 10px var(--success); }
+#statusBadge.is-error { background: var(--danger-soft); color: var(--danger); border-color: transparent; }
+#statusBadge.is-error .status-dot { background: var(--danger); box-shadow: 0 0 10px var(--danger); }
+
+/* ===================== Two-pane editor ===================== */
+.editor { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); margin-top: var(--space-5); }
+.pane { display: flex; flex-direction: column; padding: 0; overflow: hidden; min-width: 0; }
+.pane-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--border); }
+.pane-title { margin: 0; font-size: 13px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--text-secondary); }
+.pane-meta { font-size: 12px; }
+
+.pane--input #testInput { flex: 1; width: 100%; min-height: 260px; border: none; border-radius: 0; background: transparent; padding: var(--space-5); font-size: 13.5px; line-height: 1.7; resize: none; }
+.pane--input #testInput:focus { box-shadow: none; background: transparent; }
+
+.pane--output { position: relative; }
+.output-scroll { position: relative; flex: 1; min-height: 260px; overflow: auto; }
+.output-code { margin: 0; padding: var(--space-5); font-size: 13.5px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; min-height: 100%; }
+.output-code:empty { display: none; }
+.output-empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-3); pointer-events: none; }
+.output-empty p { margin: 0; }
+.output-empty.is-hidden { display: none; }
+
+/* ===================== Match / group highlighting ===================== */
+.match-hl {
+  background: var(--gradient-brand-soft);
+  outline: 1px solid rgba(139,92,246,.45);
+  border-radius: 3px;
+  padding: 0 1px;
+}
+.group-hl {
+  background: rgba(34,211,238,.22);
+  outline: 1px solid rgba(34,211,238,.5);
+  border-radius: 3px;
+  padding: 0 1px;
+}
+[data-theme="light"] .group-hl { background: rgba(14,116,144,.16); }
+
+/* ===================== Error panel ===================== */
+.error-panel { margin-top: var(--space-5); border-color: var(--danger); background: linear-gradient(var(--danger-soft), var(--danger-soft)), var(--glass); }
+.error-head { display: flex; align-items: center; gap: var(--space-3); color: var(--danger); margin-bottom: var(--space-3); }
+.error-head svg { width: 20px; height: 20px; flex: none; }
+.error-head strong { font-size: 15px; }
+.error-msg { margin: 0; color: var(--text); font-size: 13.5px; word-break: break-word; }
+
+/* ===================== Stats bar ===================== */
+.stats-bar { margin-top: var(--space-5); display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); padding: var(--space-5) var(--space-6); }
+.stat { display: flex; flex-direction: column; gap: 4px; text-align: center; }
+.stat-label { font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--text-muted); }
+.stat-value { font-family: var(--font-mono); font-size: clamp(1rem, .85rem + .8vw, 1.35rem); font-weight: 700; letter-spacing: -.01em; }
+
+/* ===================== Match list ===================== */
+.matches-panel, .replace-panel { margin-top: var(--space-5); }
+.match-list { margin-top: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); max-height: 420px; overflow: auto; }
+.match-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-4); }
+.match-item-head { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-2); flex-wrap: wrap; }
+.match-item-head .badge { font-family: var(--font-mono); }
+.match-item .full-match { font-family: var(--font-mono); font-size: 13.5px; color: var(--text); word-break: break-word; background: var(--surface-2); padding: 4px 8px; border-radius: 6px; display: inline-block; }
+.group-rows { margin-top: var(--space-2); display: flex; flex-direction: column; gap: 4px; }
+.group-row { display: flex; gap: var(--space-2); font-size: 13px; align-items: baseline; }
+.group-row .g-label { color: var(--text-muted); font-family: var(--font-mono); min-width: 90px; flex: none; }
+.group-row .g-value { font-family: var(--font-mono); color: var(--text); word-break: break-word; }
+.group-row .g-value.is-undefined { color: var(--text-muted); font-style: italic; }
+
+.replace-output { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-4); white-space: pre-wrap; word-break: break-word; min-height: 60px; }
+
+/* ===================== Shortcuts modal table ===================== */
+.shortcut-table { width: 100%; border-collapse: collapse; }
+.shortcut-table td { padding: 10px 4px; border-bottom: 1px solid var(--border); font-size: 14px; }
+.shortcut-table tr:last-child td { border-bottom: none; }
+.shortcut-table td:last-child { text-align: right; white-space: nowrap; }
+.shortcut-table kbd + kbd { margin-left: 4px; }
+
+/* ===================== Responsive ===================== */
+@media (max-width: 860px) {
+  .editor { grid-template-columns: 1fr; }
+  .pane--input #testInput, .output-scroll { min-height: 220px; }
+  .stats-bar { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 720px) {
+  #statusBadge { display: none; }
+  .toolbar-group { width: 100%; }
+  .toolbar-group .btn { flex: 1; }
+  .field-inline { width: 100%; }
+  .field-inline select { flex: 1; }
+}
+@media (max-width: 460px) {
+  .stats-bar { grid-template-columns: 1fr; text-align: left; }
+  .stat { text-align: left; }
+  .group-row { flex-direction: column; gap: 2px; }
+}

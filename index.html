@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#08090d">
+  <meta name="description" content="Live regex tester with highlighted matches, capture groups, a replace-preview mode, and common pattern presets — fast, private, offline.">
+  <title>Regex Tester Pro — Web Utility Suite</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <header class="topbar container">
+    <a class="brand" href="https://github.com/kasapdev/web-utility-suite" aria-label="Back to Web Utility Suite">
+      <span class="logo" aria-hidden="true">
+        <!-- search / pattern icon -->
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="10" cy="10" r="7"/>
+          <path d="m21 21-4.35-4.35"/>
+          <path d="M7.5 10h5M10 7.5v5"/>
+        </svg>
+      </span>
+      <span class="col" style="gap:0">
+        <span>Regex Tester</span>
+        <span class="sub">Web Utility Suite</span>
+      </span>
+    </a>
+    <span class="spacer"></span>
+
+    <span id="statusBadge" class="badge" role="status" aria-live="polite" title="Pattern status">
+      <span class="status-dot" aria-hidden="true"></span><span id="statusText">Ready</span>
+    </span>
+
+    <button class="btn btn--icon" data-shortcut-help title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="2" y="4" width="20" height="16" rx="2"/>
+        <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M7 16h10"/>
+      </svg>
+    </button>
+    <button class="btn btn--icon" data-theme-toggle title="Toggle theme" aria-label="Toggle theme">
+      <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="4"/>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+      </svg>
+      <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+    </button>
+  </header>
+
+  <main class="container">
+    <!-- Pattern toolbar -->
+    <section class="panel toolbar-panel fade-in" aria-label="Pattern">
+      <div class="toolbar">
+        <div class="toolbar-group flex-1">
+          <div class="field-inline pattern-field">
+            <label for="patternInput">/</label>
+            <input type="text" id="patternInput" class="mono" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="pattern" aria-label="Regular expression pattern">
+            <label for="flagsInput">/</label>
+            <input type="text" id="flagsInput" class="mono flags-input" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="gi" maxlength="6" aria-label="Regex flags">
+          </div>
+        </div>
+        <div class="toolbar-group">
+          <div class="field-inline">
+            <label for="presetSelect">Preset</label>
+            <select id="presetSelect" aria-label="Pattern presets">
+              <option value="">Choose…</option>
+              <option value="email">Email address</option>
+              <option value="url">URL</option>
+              <option value="ipv4">IPv4 address</option>
+              <option value="hex">Hex color</option>
+              <option value="phone">US phone number</option>
+              <option value="isodate">ISO date (YYYY-MM-DD)</option>
+            </select>
+          </div>
+          <button id="btnCopyPattern" class="btn btn--sm" title="Copy pattern">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Copy
+          </button>
+          <button id="btnClear" class="btn btn--sm btn--ghost" title="Clear everything">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+            Clear
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Error panel -->
+    <section id="errorPanel" class="panel error-panel fade-in" role="alert" hidden>
+      <div class="error-head">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+        <strong>Invalid pattern</strong>
+      </div>
+      <p id="errorMsg" class="error-msg mono"></p>
+    </section>
+
+    <!-- Test string / highlighted output -->
+    <section class="editor rise" aria-label="Test string">
+      <div class="pane panel pane--input">
+        <div class="pane-head">
+          <h2 class="pane-title">Test string</h2>
+          <span id="inputStats" class="muted pane-meta mono">0 chars</span>
+        </div>
+        <textarea id="testInput" class="mono" spellcheck="false" autocapitalize="off" autocomplete="off"
+          aria-label="Test string" placeholder="Paste or type text to match against…"></textarea>
+      </div>
+
+      <div class="pane panel pane--output">
+        <div class="pane-head">
+          <h2 class="pane-title">Highlighted matches</h2>
+          <span id="matchStats" class="muted pane-meta mono"></span>
+        </div>
+        <div class="output-scroll">
+          <pre id="highlightOutput" class="output-code mono" aria-live="polite"><code id="highlightCode"></code></pre>
+          <div id="highlightEmpty" class="empty output-empty">
+            <p>Matches will be highlighted here.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Stats bar -->
+    <section id="statsBar" class="panel stats-bar fade-in" aria-label="Match statistics" hidden>
+      <div class="stat">
+        <span class="stat-label">Matches</span>
+        <span id="statMatches" class="stat-value gradient-text">—</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Groups / match</span>
+        <span id="statGroups" class="stat-value">—</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Named groups</span>
+        <span id="statNamed" class="stat-value">—</span>
+      </div>
+    </section>
+
+    <!-- Match list -->
+    <section class="panel matches-panel fade-in" aria-label="Match list">
+      <div class="pane-head">
+        <h2 class="pane-title">Match list</h2>
+      </div>
+      <div id="matchList" class="match-list">
+        <div class="empty" id="matchListEmpty"><p>No matches yet.</p></div>
+      </div>
+    </section>
+
+    <!-- Replace preview -->
+    <section class="panel replace-panel fade-in" aria-label="Replace preview">
+      <div class="pane-head">
+        <h2 class="pane-title">Replace preview</h2>
+        <button id="btnCopyReplace" class="btn btn--sm" title="Copy result">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          Copy
+        </button>
+      </div>
+      <div class="field" style="margin-bottom:var(--space-4)">
+        <label for="replacementInput">Replacement (supports <code>$1</code>, <code>$&lt;name&gt;</code>)</label>
+        <input type="text" id="replacementInput" class="mono" spellcheck="false" autocapitalize="off" autocomplete="off" placeholder="e.g. [$1]">
+      </div>
+      <pre id="replaceOutput" class="output-code mono replace-output" aria-live="polite"></pre>
+    </section>
+  </main>
+
+  <footer class="app-footer container">
+    Part of the <a href="https://github.com/kasapdev/web-utility-suite">Web Utility Suite</a> · MIT Licensed
+  </footer>
+
+  <!-- Shortcuts help modal -->
+  <div id="helpBackdrop" class="modal-backdrop" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+      <div class="row between center" style="margin-bottom:var(--space-4)">
+        <h3 id="helpTitle" style="margin:0">Keyboard shortcuts</h3>
+        <button id="helpClose" class="btn btn--icon btn--ghost" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <table class="shortcut-table">
+        <tbody id="shortcutRows"></tbody>
+      </table>
+      <p class="muted" style="margin:var(--space-4) 0 0;font-size:13px">Tip: <kbd>mod</kbd> means <kbd>Ctrl</kbd> on Windows/Linux and <kbd>⌘</kbd> on macOS.</p>
+    </div>
+  </div>
+
+  <script src="assets/js/core.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
