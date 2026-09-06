@@ -17,6 +17,7 @@ Regex Tester Pro is part of the **Web Utility Suite**. It runs entirely in the b
 - **Match list** — every match's index, start/end offsets, full matched text, and every capturing group (numbered and named) with its captured value or `undefined` when it didn't participate.
 - **Replace-preview mode** — a separate pattern + flags + replacement input showing the live result of `String.replace`, with full support for `$1`, `$<name>`, `$&`, `` $` ``, `$'` substitution syntax exactly as native JavaScript handles it (honors your flags — add `g` to replace all).
 - **Pattern presets** — a dropdown that fills in real, working patterns for email addresses, URLs, IPv4 addresses, hex colors, US phone numbers, and ISO dates (`YYYY-MM-DD`).
+- **Explain pattern** — a plain-English, line-by-line breakdown of the current pattern (anchors, character classes, groups, quantifiers, alternation, backreferences, lookaround), correctly nested and aware of the `m`/`s` flags.
 - **Stats** — total match count, the max number of capture groups seen, and how many distinct named groups are in use.
 - **Copy** the pattern or the replace-preview result.
 - **Auto-persist** — your pattern, flags, test string, and replacement are saved to `localStorage` and restored on return.
@@ -36,10 +37,11 @@ Then simply open `index.html` in any modern browser (double-click it, or `file:/
 ## Usage
 
 1. Type or paste a **pattern** and optional **flags** (e.g. `gi`), or pick a **preset**.
-2. Paste your **test string** — matches highlight instantly, with capture groups nested inside each match.
-3. Scroll the **match list** for a full breakdown of every match and its groups.
-4. Switch to the **replace preview** panel, type a replacement (supporting `$1`, `$<name>`, etc.), and see the live result.
-5. **Copy** the pattern or the replace result whenever you need them.
+2. Read the **Explain pattern** panel for a plain-English, line-by-line breakdown of what the pattern does.
+3. Paste your **test string** — matches highlight instantly, with capture groups nested inside each match.
+4. Scroll the **match list** for a full breakdown of every match and its groups.
+5. Switch to the **replace preview** panel, type a replacement (supporting `$1`, `$<name>`, etc.), and see the live result.
+6. **Copy** the pattern or the replace result whenever you need them.
 
 ## Keyboard Shortcuts
 
@@ -58,7 +60,7 @@ Then simply open `index.html` in any modern browser (double-click it, or `file:/
 
 ## Roadmap
 
-- [ ] Regex explanation / breakdown panel (plain-English description of the pattern)
+- [x] Regex explanation / breakdown panel (plain-English description of the pattern)
 - [ ] Multi-line test cases with per-line match toggling
 - [ ] Save & recall a personal library of favorite patterns
 - [ ] Regex golf-style diff between two patterns' matches

@@ -44,6 +44,9 @@
   var replaceOutput    = document.getElementById('replaceOutput');
   var btnCopyReplace   = document.getElementById('btnCopyReplace');
 
+  var explainPanel = document.getElementById('explainPanel');
+  var explainList  = document.getElementById('explainList');
+
   var lastReplaceResult = '';
 
   /* =================================================================
@@ -188,6 +191,242 @@
       names.push(null); // unnamed capturing group
     }
     return names;
+  }
+
+  /* =================================================================
+     PLAIN-ENGLISH EXPLANATION
+     Walks the pattern source (not the compiled RegExp — JS exposes no
+     AST) into a flat, depth-tagged list of {depth, token, desc} rows,
+     one per atom/group boundary/alternation, in source order. Only
+     ever called on a pattern that already compiled successfully via
+     `new RegExp(pattern, flags)`, and still defensively try/caught by
+     the caller since this hand-written scanner doesn't re-validate
+     full regex grammar.
+     ================================================================= */
+  function explainRegex(pattern, flags) {
+    var entries = [];
+    var depth = 0;
+    var i = 0;
+    var n = pattern.length;
+    var groupCounter = 0;
+    var multiline = flags.indexOf('m') > -1;
+    var dotAll = flags.indexOf('s') > -1;
+    var META = '\\^$.|?*+()[]{}';
+
+    function isMeta(ch) { return ch !== undefined && META.indexOf(ch) > -1; }
+    function isQuantStart(ch) { return ch === '*' || ch === '+' || ch === '?' || ch === '{'; }
+
+    function pushRow(token, desc) {
+      entries.push({ depth: depth, token: token, desc: desc });
+    }
+
+    // Consume a quantifier at the current position, if any, WITHOUT requiring
+    // one to be there. Returns {text, desc} and advances i, or returns null
+    // and leaves i untouched.
+    function tryConsumeQuantifier() {
+      var c = pattern[i];
+      var start = i;
+      var desc;
+      if (c === '{') {
+        var m = /^\{(\d+)(,(\d*))?\}/.exec(pattern.slice(i));
+        if (!m) return null; // not a real quantifier (e.g. literal "{abc}") — leave as-is
+        i += m[0].length;
+        var min = m[1], hasComma = m[2] !== undefined, max = m[3];
+        if (!hasComma) desc = 'exactly ' + min + (min === '1' ? ' time' : ' times');
+        else if (!max) desc = min + ' or more times';
+        else desc = 'between ' + min + ' and ' + max + ' times';
+      } else if (c === '*' || c === '+' || c === '?') {
+        i++;
+        desc = c === '*' ? 'zero or more times' : c === '+' ? 'one or more times' : 'zero or one time (optional)';
+      } else {
+        return null;
+      }
+      if (pattern[i] === '?') { i++; desc += ', as few times as possible (lazy)'; }
+      return { text: pattern.slice(start, i), desc: desc };
+    }
+
+    function applyTrailingQuantifier() {
+      var q = tryConsumeQuantifier();
+      if (q && entries.length) {
+        var row = entries[entries.length - 1];
+        row.token += q.text;
+        row.desc += ', ' + q.desc;
+      }
+    }
+
+    function readCharClass() {
+      var start = i;
+      i++; // skip [
+      if (pattern[i] === '^') i++;
+      while (i < n && pattern[i] !== ']') {
+        if (pattern[i] === '\\') i += 2; else i++;
+      }
+      if (i < n) i++; // skip closing ]
+      var text = pattern.slice(start, i);
+      var neg = text.charAt(1) === '^';
+      var inner = text.slice(neg ? 2 : 1, -1);
+      pushRow(text, (neg ? 'any character NOT in the set: ' : 'any character in the set: ') + (inner || '(empty)'));
+    }
+
+    function describeSimpleEscape(seq) {
+      switch (seq) {
+        case '\\d': return 'a digit (0-9)';
+        case '\\D': return 'a non-digit character';
+        case '\\w': return 'a word character (letter, digit, or underscore)';
+        case '\\W': return 'a non-word character';
+        case '\\s': return 'a whitespace character';
+        case '\\S': return 'a non-whitespace character';
+        case '\\b': return 'a word boundary';
+        case '\\B': return 'not a word boundary';
+        case '\\n': return 'a newline';
+        case '\\r': return 'a carriage return';
+        case '\\t': return 'a tab';
+        case '\\f': return 'a form feed';
+        case '\\v': return 'a vertical tab';
+        case '\\0': return 'a NUL character';
+        default: return 'the literal character "' + seq.slice(1) + '"';
+      }
+    }
+
+    function readEscape() {
+      var start = i;
+      i++; // skip backslash
+      var c = pattern[i];
+      if (c === undefined) { pushRow('\\', 'a literal backslash'); return; }
+      if (c === 'u') {
+        i++;
+        if (pattern[i] === '{') {
+          var end = pattern.indexOf('}', i);
+          i = end === -1 ? n : end + 1;
+        } else {
+          i += 4;
+        }
+        var text = pattern.slice(start, i);
+        pushRow(text, 'the Unicode code point ' + text);
+        return;
+      }
+      if (c === 'x') {
+        i += 3;
+        pushRow(pattern.slice(start, i), 'the character ' + pattern.slice(start, i));
+        return;
+      }
+      if (c === 'k' && pattern[i + 1] === '<') {
+        var end2 = pattern.indexOf('>', i);
+        var closeAt = end2 === -1 ? n : end2 + 1;
+        var name = pattern.slice(start + 3, end2 === -1 ? n : end2);
+        i = closeAt;
+        pushRow(pattern.slice(start, i), 'backreference to the "' + name + '" group');
+        return;
+      }
+      if (/[1-9]/.test(c)) {
+        var j = i;
+        while (j < n && /[0-9]/.test(pattern[j])) j++;
+        i = j;
+        pushRow(pattern.slice(start, i), 'backreference to group ' + pattern.slice(start + 1, i));
+        return;
+      }
+      i++;
+      var seq = pattern.slice(start, i);
+      pushRow(seq, describeSimpleEscape(seq));
+    }
+
+    function readGroup() {
+      var openStart = i;
+      i++; // skip (
+      var openLabel, closeLabel;
+      if (pattern[i] === '?') {
+        var c2 = pattern[i + 1];
+        if (c2 === ':') { i += 2; openLabel = 'non-capturing group:'; closeLabel = 'end of group'; }
+        else if (c2 === '=') { i += 2; openLabel = 'lookahead — must be followed by:'; closeLabel = 'end of lookahead'; }
+        else if (c2 === '!') { i += 2; openLabel = 'negative lookahead — must NOT be followed by:'; closeLabel = 'end of negative lookahead'; }
+        else if (c2 === '<' && pattern[i + 2] === '=') { i += 3; openLabel = 'lookbehind — must be preceded by:'; closeLabel = 'end of lookbehind'; }
+        else if (c2 === '<' && pattern[i + 2] === '!') { i += 3; openLabel = 'negative lookbehind — must NOT be preceded by:'; closeLabel = 'end of negative lookbehind'; }
+        else if (c2 === '<') {
+          var end = pattern.indexOf('>', i + 2);
+          var name = pattern.slice(i + 2, end === -1 ? n : end);
+          i = end === -1 ? n : end + 1;
+          groupCounter++;
+          openLabel = 'capturing group ' + groupCounter + ' (named "' + name + '"):';
+          closeLabel = 'end of group ' + groupCounter + ' ("' + name + '")';
+        } else { i++; openLabel = 'special group construct:'; closeLabel = 'end of group'; }
+      } else {
+        groupCounter++;
+        openLabel = 'capturing group ' + groupCounter + ':';
+        closeLabel = 'end of group ' + groupCounter;
+      }
+      pushRow(pattern.slice(openStart, i), openLabel);
+      depth++;
+      parseBody(true);
+      depth--;
+      if (pattern[i] === ')') i++;
+      pushRow(')', closeLabel);
+      applyTrailingQuantifier();
+    }
+
+    function parseBody(stopAtParen) {
+      while (i < n) {
+        var c = pattern[i];
+        if (c === ')') {
+          if (stopAtParen) return;
+          i++; continue; // stray/unbalanced — shouldn't happen on a compiled pattern
+        }
+        if (c === '|') { pushRow('|', 'OR — matches either what comes before or after this point'); i++; continue; }
+        if (c === '(') { readGroup(); continue; }
+        if (c === '[') { readCharClass(); applyTrailingQuantifier(); continue; }
+        if (c === '\\') { readEscape(); applyTrailingQuantifier(); continue; }
+        if (c === '^') { pushRow('^', multiline ? 'the start of a line (multiline mode)' : 'the start of the string'); i++; applyTrailingQuantifier(); continue; }
+        if (c === '$') { pushRow('$', multiline ? 'the end of a line (multiline mode)' : 'the end of the string'); i++; applyTrailingQuantifier(); continue; }
+        if (c === '.') { pushRow('.', dotAll ? 'any character, including line breaks' : 'any character except line breaks'); i++; applyTrailingQuantifier(); continue; }
+        if (c === '*' || c === '+' || c === '?' || c === '{') {
+          var dangling = tryConsumeQuantifier();
+          if (dangling) pushRow(dangling.text, 'the literal text "' + dangling.text + '" (no preceding token to repeat)');
+          else { pushRow(c, 'the character "' + c + '"'); i++; }
+          continue;
+        }
+        // Literal run: greedily consume plain characters, but stop one
+        // character early whenever the next character is about to be
+        // quantified (so e.g. "abc+" splits into "ab" and a quantified "c").
+        var start = i;
+        i++;
+        while (i < n && !isMeta(pattern[i]) && !isQuantStart(pattern[i + 1])) i++;
+        var run = pattern.slice(start, i);
+        pushRow(run, (run.length === 1 ? 'the character "' : 'the characters "') + run + '"');
+        applyTrailingQuantifier();
+      }
+    }
+
+    parseBody(false);
+    return entries;
+  }
+
+  function renderExplanation(pattern, flags) {
+    if (!pattern) { explainPanel.hidden = true; explainList.innerHTML = ''; return; }
+    try {
+      var rows = explainRegex(pattern, flags);
+      if (!rows.length) { explainPanel.hidden = true; explainList.innerHTML = ''; return; }
+      explainList.innerHTML = '';
+      rows.forEach(function (r) {
+        var row = document.createElement('div');
+        row.className = 'explain-row';
+        row.style.paddingLeft = (6 + r.depth * 18) + 'px';
+        var tok = document.createElement('span');
+        tok.className = 'explain-token';
+        tok.textContent = r.token;
+        var desc = document.createElement('span');
+        desc.className = 'explain-desc';
+        desc.textContent = r.desc;
+        row.appendChild(tok);
+        row.appendChild(desc);
+        explainList.appendChild(row);
+      });
+      explainPanel.hidden = false;
+    } catch (e) {
+      // Defensive: never let an explanation-rendering bug break the tester.
+      explainPanel.hidden = true;
+      explainList.innerHTML = '';
+      // eslint-disable-next-line no-console
+      console.error('[explain] failed to explain pattern:', e);
+    }
   }
 
   /* =================================================================
@@ -337,6 +576,7 @@
       statsBar.hidden = true;
       renderMatchList([], false);
       updateReplace('', flags, text);
+      renderExplanation('', flags);
       setStatus('', 'Ready');
       return;
     }
@@ -352,6 +592,7 @@
       statsBar.hidden = true;
       renderMatchList([], false);
       updateReplace('', flags, text);
+      renderExplanation('', flags);
       showError(e.message);
       setStatus('error', 'Invalid pattern');
       return;
@@ -361,6 +602,7 @@
     renderStats(matches);
     renderMatchList(matches, parseGroupNames(pattern));
     updateReplace(pattern, flags, text);
+    renderExplanation(pattern, flags);
     setStatus('valid', matches.length ? (matches.length + ' match' + (matches.length === 1 ? '' : 'es')) : 'No matches');
   }
   var recomputeDebounced = WUS.debounce(recompute, 200);
