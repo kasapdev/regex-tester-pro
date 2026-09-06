@@ -156,6 +156,40 @@
     return names;
   }
 
+  // Maps each capturing group's 1-based index to its name (or null if unnamed),
+  // by walking the pattern source itself — NOT by comparing captured values.
+  // (Matching by value is ambiguous: two different groups can legitimately
+  // capture the same text, e.g. /(?<year>\d{4})-(\d{4})/ on "2024-2024".)
+  function parseGroupNames(pattern) {
+    var names = [];
+    var inClass = false;
+    for (var i = 0; i < pattern.length; i++) {
+      var ch = pattern[i];
+      if (ch === '\\') { i++; continue; } // skip escaped character
+      if (inClass) {
+        if (ch === ']') inClass = false;
+        continue;
+      }
+      if (ch === '[') { inClass = true; continue; }
+      if (ch !== '(') continue;
+      if (pattern[i + 1] === '?') {
+        var c2 = pattern[i + 2];
+        if (c2 === ':' || c2 === '=' || c2 === '!') continue; // non-capturing / lookahead
+        if (c2 === '<') {
+          var c3 = pattern[i + 3];
+          if (c3 === '=' || c3 === '!') continue; // lookbehind, not capturing
+          var end = pattern.indexOf('>', i + 3);
+          if (end === -1) continue;
+          names.push(pattern.slice(i + 3, end)); // named capturing group
+          continue;
+        }
+        continue; // unrecognized (?...) construct — treat as non-capturing
+      }
+      names.push(null); // unnamed capturing group
+    }
+    return names;
+  }
+
   /* =================================================================
      RENDERING
      ================================================================= */
@@ -182,7 +216,7 @@
     highlightCode.innerHTML = renderRangeTree(tree, text);
   }
 
-  function renderMatchList(matches, namedGroups) {
+  function renderMatchList(matches, groupNames) {
     matchList.innerHTML = '';
     if (!matches.length) {
       matchList.appendChild(matchListEmpty);
@@ -213,7 +247,7 @@
           row.className = 'group-row';
           var label = document.createElement('span');
           label.className = 'g-label';
-          var name = namedGroups && m.groups ? Object.keys(m.groups).find(function (n) { return m.groups[n] === m[g] && m[g] !== undefined; }) : null;
+          var name = groupNames ? groupNames[g - 1] : null;
           label.textContent = 'Group ' + g + (name ? ' (' + name + ')' : '');
           var val = document.createElement('span');
           var participated = m[g] !== undefined;
@@ -325,7 +359,7 @@
 
     renderHighlight(text, matches);
     renderStats(matches);
-    renderMatchList(matches, groupNamesOf(pattern).length > 0);
+    renderMatchList(matches, parseGroupNames(pattern));
     updateReplace(pattern, flags, text);
     setStatus('valid', matches.length ? (matches.length + ' match' + (matches.length === 1 ? '' : 'es')) : 'No matches');
   }
