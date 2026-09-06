@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+### Added
+
+- **Explain pattern** panel: a plain-English, line-by-line breakdown of the current pattern (anchors, character classes, groups, quantifiers, alternation, backreferences, lookaround) shown beneath the error panel whenever the pattern is valid. Descriptions are flag-aware (e.g. `^`/`$` explain multiline mode, `.` explains dotAll mode). Implements the "Regex explanation / breakdown panel" roadmap item.
+
 ## [1.0.1] - 2026-09-06
 
 ### Fixed
